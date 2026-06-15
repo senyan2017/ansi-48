@@ -16,12 +16,13 @@ ansi --report-window-position || echo "Error"
 echo -n "Window State: "
 ansi --report-window-state || echo "Error"
 
-# NOTE: This won't work
+# NOTE: Report commands cannot be used inside subshells like this:
 # echo "Position: $(ansi --report-position)"
-# echo "Icon: $(ansi --report-icon)"
-# echo "Screen Chars: $(ansi --report-screen-chars)"
-# echo "Title: $(ansi --report-title)"
-# echo "Window Chars: $(ansi --report-window-chars)"
-# echo "Window Pixels: $(ansi --report-window-pixels)"
-# echo "Window Position: $(ansi --report-window-position)"
-# echo "Window State: $(ansi --report-window-state)"
+#
+# The reason is that `read -p` sends the terminal query to stdout, and
+# the subshell captures stdout. The query never reaches the terminal,
+# so no response is received and the command times out.
+#
+# Instead, capture the result into a variable:
+# ansi --report-position
+# POSITION="$ANSI_REPORT"

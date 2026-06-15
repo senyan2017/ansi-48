@@ -12,6 +12,15 @@ ANSI_OSC="${ANSI_ESC}]"
 ANSI_ST="${ANSI_ESC}\\"
 ANSI_REPORT="" # The return value from ansi::report
 
+# Validation helpers
+ansi::isNaturalNumber() {
+    [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+ansi::isColorValue() {
+    ansi::isNaturalNumber "$1" && (( $1 >= 0 && $1 <= 255 ))
+}
+
 ansi::backward() {
     printf '%s%sD' "$ANSI_CSI" "${1-}"
 }
@@ -542,19 +551,35 @@ ansi::report() {
 
     report=""
 
-    # Note: read bypass piping, which lets this work:
-    # ansi --report-window-chars | cut -d , -f 1
-    read -p "$ANSI_CSI$1" -r -N "${#2}" -s -t 1 buff
-
-    if [ "$buff" != "$2" ]; then
+    # Report commands need a terminal on stdin to read responses.
+    if [[ ! -t 0 ]]; then
+        printf 'ansi: --report-* requires a terminal on stdin (not piped or redirected)\n' >&2
         return 1
     fi
 
-    read -r -N "${#3}" -s -t 1 buff
+    # Note: read bypass piping, which lets this work:
+    # ansi --report-window-chars | cut -d , -f 1
+    if ! read -p "$ANSI_CSI$1" -r -N "${#2}" -s -t 1 buff; then
+        printf 'ansi: --report-* timed out waiting for terminal response\n' >&2
+        return 1
+    fi
+
+    if [ "$buff" != "$2" ]; then
+        printf 'ansi: --report-* received unexpected response from terminal\n' >&2
+        return 1
+    fi
+
+    if ! read -r -N "${#3}" -s -t 1 buff; then
+        printf 'ansi: --report-* timed out waiting for terminal response\n' >&2
+        return 1
+    fi
 
     while [[ "$buff" != "$3" ]]; do
         report="$report${buff:0:1}"
-        read -r -N 1 -s -t 1 c || exit 1
+        if ! read -r -N 1 -s -t 1 c; then
+            printf 'ansi: --report-* timed out waiting for terminal response\n' >&2
+            return 1
+        fi
         buff="${buff:1}$c"
     done
 
@@ -702,7 +727,7 @@ Display Manipulation
     --erase-display[=N], --ed[=N]
                              Erase in display. 0=below, 1=above, 2=all,
                              3=saved.
-    --erase-line=[N], --el[=N]
+    --erase-line[=N], --el[=N]
                              Erase in line. 0=right, 1=left, 2=all.
     --insert-lines[=N], --insert-line[=N], --il[=N]
     --delete-lines[=N], --delete-line[=N], --dl[=N]
@@ -948,7 +973,7 @@ ansi() {
                 $supported && ansi::repeat
                 ;;
 
-            --repeat=* | --rep=N)
+            --repeat=* | --rep=*)
                 $supported && ansi::repeat "${1#*=}"
                 ;;
 
@@ -1014,7 +1039,23 @@ ansi() {
                 ;;
 
             --position=* | --cup=*)
-                $supported && ansi::position "${1#*=}"
+                local posVal="${1#*=}" posRow posCol
+                if [[ "$posVal" == *,* ]]; then
+                    posRow="${posVal%%,*}"
+                    posCol="${posVal##*,}"
+                    if [[ -n "$posRow" ]] && ! ansi::isNaturalNumber "$posRow"; then
+                        printf 'ansi: --position=ROW,COL requires numeric row (got %s)\n' "$posRow" >&2
+                        return 1
+                    fi
+                    if [[ -n "$posCol" ]] && ! ansi::isNaturalNumber "$posCol"; then
+                        printf 'ansi: --position=ROW,COL requires numeric col (got %s)\n' "$posCol" >&2
+                        return 1
+                    fi
+                elif [[ -n "$posVal" ]] && ! ansi::isNaturalNumber "$posVal"; then
+                    printf 'ansi: --position=ROW,COL requires numeric values (got %s)\n' "$posVal" >&2
+                    return 1
+                fi
+                $supported && ansi::position "$posVal"
                 ;;
 
             --tab-forward | --cht)
@@ -1309,12 +1350,20 @@ ansi() {
                 g=${r#*,}
                 g=${g%,*}
                 r=${r%%,*}
+                if ! ansi::isColorValue "$r" || ! ansi::isColorValue "$g" || ! ansi::isColorValue "$b"; then
+                    printf 'ansi: --rgb=R,G,B requires values 0-255 (got %s,%s,%s)\n' "$r" "$g" "$b" >&2
+                    return 1
+                fi
                 $supported && ansi::rgb "$r" "$g" "$b"
                 restoreText=true
                 m39="39;"
                 ;;
 
             --color=*)
+                if ! ansi::isColorValue "${1#*=}"; then
+                    printf 'ansi: --color=CODE requires a value 0-255 (got %s)\n' "${1#*=}" >&2
+                    return 1
+                fi
                 $supported && ansi::color "${1#*=}"
                 restoreText=true
                 m39="39;"
@@ -1423,12 +1472,20 @@ ansi() {
                 g=${r#*,}
                 g=${g%,*}
                 r=${r%%,*}
+                if ! ansi::isColorValue "$r" || ! ansi::isColorValue "$g" || ! ansi::isColorValue "$b"; then
+                    printf 'ansi: --bg-rgb=R,G,B requires values 0-255 (got %s,%s,%s)\n' "$r" "$g" "$b" >&2
+                    return 1
+                fi
                 $supported && ansi::bgRgb "$r" "$g" "$b"
                 restoreText=true
                 m49="49;"
                 ;;
 
             --bg-color=*)
+                if ! ansi::isColorValue "${1#*=}"; then
+                    printf 'ansi: --bg-color=CODE requires a value 0-255 (got %s)\n' "${1#*=}" >&2
+                    return 1
+                fi
                 $supported && ansi::bgColor "${1#*=}"
                 restoreText=true
                 m49="49;"
@@ -1527,7 +1584,7 @@ ansi() {
                 ;;
 
             --reset-ideogram)
-                $supported && ansi::noIdeogram
+                $supported && ansi::resetIdeogram
                 ;;
 
             # Miscellaneous
@@ -1603,7 +1660,11 @@ ansi() {
 
     if [[ "$#" -gt 1 ]]; then
         shift || :
-        printf "${IFS:0:1}%s" "${@}"
+        local _ansi_sep="${IFS:0:1}"
+        local _ansi_arg
+        for _ansi_arg in "${@}"; do
+            printf '%s%s' "$_ansi_sep" "$_ansi_arg"
+        done
     fi
 
     if $supported && $triggerRestore; then

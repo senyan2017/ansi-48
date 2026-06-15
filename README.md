@@ -81,7 +81,7 @@ It often helps when one can see how to use a new tool, so here's how this librar
 ### Command-Line
 
     # Write "Tests pass" in green on its own line
-    ansi --green --newline "Tests pass"
+    ansi --green "Tests pass"
 
     # Change the terminal's title to the working directory and
     # do not write anything to the terminal.
@@ -149,7 +149,7 @@ The short version of these options comes from the command they are implementing.
 
 ### Text (Attributes)
 
-All of these options will automatically reset to normal text unless `--no-reset` is used. Below, the codes are grouped into similar functionality and the flag to disable that attribute is listed with the group it controls, so you can correlate the flags more easily.
+All of these options will automatically reset to normal text unless `--no-restore` is used. Below, the codes are grouped into similar functionality and the flag to disable that attribute is listed with the group it controls, so you can correlate the flags more easily.
 
 * `--bold` and `--faint` can be reset with `--normal`
 * `--italic` and `--fraktur` can be reset with `--plain`
@@ -166,7 +166,7 @@ All of these options will automatically reset to normal text unless `--no-reset`
 
 ### Text (Foreground)
 
-All of these options will automatically reset to the default color unless `--no-reset` is used. To preview the colors, use `--color-table`.
+All of these options will automatically reset to the default color unless `--no-restore` is used. To preview the colors, use `--color-table`.
 
 * `--black` and `--black-intense`
 * `--red` and `--red-intense`
@@ -182,7 +182,7 @@ All of these options will automatically reset to the default color unless `--no-
 
 ### Text (Background)
 
-All of these options will automatically reset to the default color unless `--no-reset` is used. To preview the colors, use `--color-table`.
+All of these options will automatically reset to the default color unless `--no-restore` is used. To preview the colors, use `--color-table`.
 
 * `--bg-black` and `--bg-black-intense`
 * `--bg-red` and `--bg-red-intense`
@@ -198,7 +198,7 @@ All of these options will automatically reset to the default color unless `--no-
 
 ### Text (Reset)
 
-These options force a reset of colors.  This is useful if you used `--no-reset` or are correcting the appearance of a misbehaving terminal.
+These options force a reset of colors.  This is useful if you used `--no-restore` or are correcting the appearance of a misbehaving terminal.
 
 * `--reset-attrib` - Reset all attributes
 * `--reset-foreground` - Reset the foreground to default
@@ -263,7 +263,7 @@ When using this to change the color or perform terminal manipulation, make sure 
     # You must manually reset the colors
     ansi::resetForeground
 
-All of the functions write to stdout except `ansi::report`. That one uses stderr to query the terminal and its result will go into the `ANSI_REPORT` environment variable.
+All of the functions write to stdout except `ansi::report`. That one sends the query to the terminal via stdout (using `read -p`), reads the terminal's response from stdin, and stores the result in the `ANSI_REPORT` environment variable.
 
 None of the functions care if the terminal supports ANSI unless otherwise noted. They will happily write out ANSI codes even if the terminal will not recognize them.
 
@@ -309,7 +309,7 @@ The short version of these options comes from the command they are implementing.
 
 ### Text (Attributes)
 
-All of these options will automatically reset to normal text unless `--no-reset` is used. Below, the codes are grouped into similar functionality and the flag to disable that attribute is listed with the group it controls, so you can correlate the flags more easily.
+All of these options will automatically reset to normal text unless `--no-restore` is used. Below, the codes are grouped into similar functionality and the flag to disable that attribute is listed with the group it controls, so you can correlate the flags more easily.
 
 * `ansi::bold` and `ansi::faint` can be reset with `ansi::normal`
 * `ansi::italic` and `ansi::fraktur` can be reset with `ansi::plain`
@@ -326,7 +326,7 @@ All of these options will automatically reset to normal text unless `--no-reset`
 
 ### Text (Foreground)
 
-All of these options will automatically reset to the default color unless `--no-reset` is used. To preview the colors, use `--color-table`.
+All of these options will automatically reset to the default color unless `--no-restore` is used. To preview the colors, use `--color-table`.
 
 * `ansi::black` and `ansi::blackIntense`
 * `ansi::red` and `ansi::redIntense`
@@ -342,7 +342,7 @@ All of these options will automatically reset to the default color unless `--no-
 
 ### Text (Background)
 
-All of these options will automatically reset to the default color unless `--no-reset` is used. To preview the colors, use `--color-table`.
+All of these options will automatically reset to the default color unless `--no-restore` is used. To preview the colors, use `--color-table`.
 
 * `ansi::bgBlack` and `ansi::bgBlackIntense`
 * `ansi::bgRed` and `ansi::bgRedIntense`
@@ -358,7 +358,7 @@ All of these options will automatically reset to the default color unless `--no-
 
 ### Text (Reset)
 
-These options force a reset of colors.  This is useful if you used `--no-reset` or are correcting the appearance of a misbehaving terminal.
+These options force a reset of colors.  This is useful if you used `--no-restore` or are correcting the appearance of a misbehaving terminal.
 
 * `ansi::resetAttributes` - Reset all attributes
 * `ansi::resetForeground` - Reset the foreground to default
@@ -373,7 +373,7 @@ All of these commands send a special code to the terminal.  The terminal respond
 
 The ANSI codes are written to stdout in order that the terminal might respond immediately. The result of the report is written to stdout.
 
-* `ansi::report` - Helper function to assist with querying the terminal for information. Writes a query to stderr (file descriptor 2), listens for information from stdin (file descriptor 0) and returns the result through the environment variable `ANSI_REPORT`.
+* `ansi::report` - Helper function to assist with querying the terminal for information. Writes a query to stdout (via `read -p`), listens for the terminal's response on stdin, and returns the result through the environment variable `ANSI_REPORT`.
 * `ansi::reportPosition` - ROW,COL
 * `ansi::reportWindowState` - "open" or "iconified"
 * `ansi::reportWindowPosition` - X,Y
