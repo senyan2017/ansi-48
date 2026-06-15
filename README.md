@@ -99,6 +99,59 @@ It often helps when one can see how to use a new tool, so here's how this librar
 Need more?  Check out the [examples/](examples/) folder.
 
 
+Style Presets
+-------------
+
+Presets (also called profiles) bundle several styles under a single name so you stop retyping the same colors, attributes, and cursor options in every script. A preset works the same whether you run `ansi` as a command or source it as a library, and it composes with the regular options.
+
+The built-in presets are `success`, `warning`, `error`, `info`, and `headline`. List whatever is available (including any you add yourself) with `ansi --list-presets`.
+
+### Presets from the command line
+
+    # Apply a preset, then reset automatically at the end (just like --green)
+    ansi --preset=success "Deploy finished"
+    ansi --preset=error "Build failed"
+
+    # --profile and --style are accepted as aliases
+    ansi --style=headline "Release report"
+
+    # Presets expand in place, so options before or after layer on normally.
+    # Here the error preset is extended with an underline and a background.
+    ansi --preset=error --underline --bg-white "Critical"
+
+    # --no-restore keeps the style on, exactly as it does for plain options
+    ansi --no-restore --no-newline --preset=success
+    echo "still green"
+    ansi --reset-color
+
+### Presets as a library
+
+After sourcing `ansi`, the `ansi::preset` function emits the preset's "on" codes just like `ansi::green`.  As with the other library functions, you reset the terminal yourself.
+
+    . ansi
+
+    ansi::preset success
+    echo "Build ok"
+    ansi::resetColor
+
+    # The ansi function also understands --preset when sourced (and no subshell
+    # is spawned, so it is fast).
+    ansi --preset=warning "Disk almost full"
+
+### Adding your own presets
+
+Define a function named `ansi::preset::NAME` that fills the `ANSI_PRESET_ARGS` array with the options the preset should expand to.  It immediately becomes usable from both the command line and `ansi::preset`, and redefining a built-in name overrides it.
+
+    # In your script, after sourcing ansi
+    ansi::preset::brand() {
+        ANSI_PRESET_ARGS=(--magenta --bold --underline)
+    }
+
+    ansi --preset=brand "Acme Corp"
+
+See [examples/presets](examples/presets) for a runnable demonstration of all of the above.
+
+
 Command-Line Options
 --------------------
 
@@ -233,6 +286,14 @@ The ANSI codes are written to stdout in order that the terminal might respond im
 * `-n`, `--no-newline` - Do not add a newline at the end.
 * `--bell` - Add the terminal's bell sequence to the output.
 * `--reset` - Reset all colors, clear the screen, show the cursor, restore the primary font, and move to 1,1.
+
+
+### Presets
+
+Presets bundle several styles under one name.  See the [Style Presets](#style-presets) section above for full examples and how to add your own.
+
+* `--preset=NAME`, `--profile=NAME`, `--style=NAME` - Apply the styles bundled under `NAME`, then keep processing the remaining options.  The preset expands in place, so options before or after it compose normally and the styles are restored at the end unless `--no-restore` is used.  Built-in names: `error`, `headline`, `info`, `success`, `warning`.
+* `--list-presets`, `--presets` - List the available preset names, one per line.
 
 
 Library Functions
@@ -397,6 +458,9 @@ The ANSI codes are written to stdout in order that the terminal might respond im
 * `ansi::colorTable` - Show a table of the different standard colors, text attributes, and similar things.
 * `ansi::colorTableLine` - Helper function to show a line of colors.
 * `ansi::isAnsiSupported` - Returns true (0) when ANSI is supported. Tries checking using tools, falls back to querying the terminal.
+* `ansi::preset` - Emit the "on" codes for a named preset, like `ansi::green` but for a whole bundle of styles. Takes the preset name as a required argument and does not reset afterward. Honors custom presets and writes the codes regardless of terminal support.
+* `ansi::presetArgs` - Helper that fills the `ANSI_PRESET_ARGS` array with the option list for a preset name. Returns non-zero for an unknown preset. Define a function named `ansi::preset::NAME` to add or override a preset.
+* `ansi::presetList` - Print the available preset names, one per line.
 * `ansi::showHelp` - Shows the help for the `ansi` command.
 * `ansi` - This function will act identically to the `ansi` command. Calling `ansi` once the library has been sourced will not spawn a subshell and instead will call functions only, greatly increasing the speed.
 

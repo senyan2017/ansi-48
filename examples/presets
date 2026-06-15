@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# Style presets / profiles.
+#
+# A preset is a named bundle of styles so you stop retyping the same colors,
+# attributes, and cursor options in every script. This demo shows the two ways
+# to use them (command line and library), how they compose with manual options,
+# and how to add your own.
+
+# Change to this script's folder so "../ansi" resolves no matter where it is run
+# from.
+cd "${0%/*}"
+
+# Load the library so "ansi" is a function (no install needed) and the
+# ansi::preset helper is available further down.
+. ../ansi
+
+# ---------------------------------------------------------------------------
+# 1. Command-line usage: one preset per call, automatically reset at the end.
+# ---------------------------------------------------------------------------
+echo "Command-line presets (each line resets itself afterward):"
+ansi --preset=success  "  success  deploy finished"
+ansi --preset=warning  "  warning  disk almost full"
+ansi --preset=error    "  error    build failed"
+ansi --preset=info     "  info     12 files changed"
+ansi --preset=headline "  Release report"
+echo
+
+# ---------------------------------------------------------------------------
+# 2. Presets compose with manual options. Because a preset expands in place,
+#    options listed after it are simply layered on top.
+# ---------------------------------------------------------------------------
+echo "A preset plus extra manual options:"
+ansi --preset=error --underline --bg-white "  critical: layered on top of the error preset"
+echo
+
+# ---------------------------------------------------------------------------
+# 3. --no-restore still works. The style stays on until you change it, which is
+#    handy when wrapping several writes in one style.
+# ---------------------------------------------------------------------------
+echo -n "Without restore the color sticks: "
+ansi --no-restore --no-newline --preset=success
+echo -n "still green"
+ansi --reset-color --no-newline
+echo
+echo
+
+# ---------------------------------------------------------------------------
+# 4. Library usage. With ansi sourced (see the top of this script), ansi::preset
+#    emits the "on" codes just like ansi::green, and you reset the terminal
+#    yourself.
+# ---------------------------------------------------------------------------
+echo "Library usage with ansi::preset (you control the reset):"
+ansi::preset success
+echo -n "  build ok"
+ansi::resetColor
+echo
+
+# ---------------------------------------------------------------------------
+# 5. Extending: define a function named ansi::preset::NAME that fills the
+#    ANSI_PRESET_ARGS array. It is then usable from the command line and from
+#    ansi::preset. Redefining a built-in name overrides it.
+# ---------------------------------------------------------------------------
+ansi::preset::brand() {
+    ANSI_PRESET_ARGS=(--magenta --bold --underline)
+}
+
+echo "A custom preset added at runtime:"
+ansi --preset=brand "  Acme Corp"
+echo
+
+echo "Available presets: $(ansi --list-presets | tr '\n' ' ')"

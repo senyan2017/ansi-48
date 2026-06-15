@@ -2,6 +2,13 @@ Changelog
 =========
 
 
+Unreleased
+----------
+
+* Added style presets / profiles. Bundle several styles under one name and use it from the command line (`--preset=NAME`, also `--profile` / `--style`) or as a library (`ansi::preset NAME`). Built-in presets: `error`, `headline`, `info`, `success`, `warning`. Add or override one by defining an `ansi::preset::NAME` function. List them with `--list-presets`.
+* Added the `examples/presets` demonstration.
+
+
 2.0.1 - 2019-02-04
 ------------------
 

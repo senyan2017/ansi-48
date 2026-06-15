@@ -517,6 +517,61 @@ ansi::position() {
     printf '%s%sH' "$ANSI_CSI" "${position/,/;}"
 }
 
+ansi::preset() {
+    # Emit the "on" codes for a named preset, just like ansi::green and the
+    # other text functions. It does not reset afterward, so you stay in control
+    # of restoring the terminal (see ansi::resetColor / ansi::reset). It honors
+    # the same preset names as the --preset command-line option, including any
+    # you define yourself, and writes the codes regardless of terminal support.
+    ANSI_FORCE_SUPPORT=1 ansi --no-restore --no-newline "--preset=${1-}"
+}
+
+ansi::preset::error() {
+    ANSI_PRESET_ARGS=(--red --bold)
+}
+
+ansi::preset::headline() {
+    ANSI_PRESET_ARGS=(--white-intense --bold --underline)
+}
+
+ansi::preset::info() {
+    ANSI_PRESET_ARGS=(--cyan)
+}
+
+ansi::preset::success() {
+    ANSI_PRESET_ARGS=(--green --bold)
+}
+
+ansi::preset::warning() {
+    ANSI_PRESET_ARGS=(--yellow --bold)
+}
+
+ansi::presetArgs() {
+    # Populate the ANSI_PRESET_ARGS array with the option list for a preset.
+    # Presets are resolved through a function named "ansi::preset::NAME", so
+    # defining (or redefining) such a function adds or overrides a preset.
+    # Returns non-zero when the named preset is unknown.
+    ANSI_PRESET_ARGS=()
+
+    if [[ "$(type -t "ansi::preset::${1-}" 2> /dev/null)" == "function" ]]; then
+        "ansi::preset::${1-}"
+
+        return 0
+    fi
+
+    return 1
+}
+
+ansi::presetList() {
+    # Print the name of every defined preset, one per line. This covers the
+    # built-in presets as well as any custom "ansi::preset::NAME" functions.
+    local fn
+
+    for fn in $(compgen -A function "ansi::preset::" 2> /dev/null); do
+        printf '%s\n' "${fn#ansi::preset::}"
+    done
+}
+
 ansi::previousLine() {
     printf '%s%sF' "$ANSI_CSI" "${1-}"
 }
@@ -777,6 +832,23 @@ Report:
     --report-screen-chars    ROWS,COLS of the entire screen
     --report-icon
     --report-title
+
+Presets:
+    Presets bundle several styles under a single name so you do not have to
+    retype the same colors, attributes, and cursor options in every script.
+
+    --preset=NAME, --profile=NAME, --style=NAME
+                             Apply the styles bundled under NAME, then keep
+                             processing the remaining options.  The preset
+                             expands in place, so options before or after it
+                             compose just like normal and the styles are
+                             restored afterward unless --no-restore is used.
+                             Built-in names: error, headline, info, success,
+                             warning.  Add or override one by defining a shell
+                             function "ansi::preset::NAME" that sets the array
+                             ANSI_PRESET_ARGS to the options it should expand to.
+    --list-presets, --presets
+                             List the available preset names, one per line.
 
 Miscellaneous:
     --color-table            Display a color table.
@@ -1565,6 +1637,31 @@ ansi() {
 
             --title=*)
                 $supported && ansi::title "${1#*=}"
+                ;;
+
+            # Presets / profiles
+            --preset=* | --profile=* | --style=*)
+                if ! ansi::presetArgs "${1#*=}"; then
+                    printf 'Unknown preset: %s\n' "${1#*=}" >&2
+                    return 1
+                fi
+
+                # Expand the preset in place so it behaves exactly as if its
+                # options had been typed at this spot: ordering, who-overrides-
+                # who, the automatic reset and --no-restore all keep working.
+                # The leading sentinel is consumed by the shift at the bottom
+                # of the loop, leaving the preset's options to be processed.
+                set -- "__ansi_preset__" "${ANSI_PRESET_ARGS[@]}" "${@:2}"
+                ;;
+
+            --preset | --profile | --style)
+                printf '%s requires a preset name, e.g. %s=success\n' "$1" "$1" >&2
+                return 1
+                ;;
+
+            --list-presets | --presets)
+                ansi::presetList
+                return 0
                 ;;
 
             --no-restore)
