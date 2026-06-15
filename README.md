@@ -235,6 +235,82 @@ The ANSI codes are written to stdout in order that the terminal might respond im
 * `--reset` - Reset all colors, clear the screen, show the cursor, restore the primary font, and move to 1,1.
 
 
+### Style Presets
+
+Presets are named collections of ANSI options that you can reuse instead of typing the same combination of flags every time. They work both from the command line and when using `ansi` as a library.
+
+#### Built-in Presets
+
+* `success` - Green bold text. Good for positive status messages.
+* `warning` - Yellow bold text. Good for caution messages.
+* `error` - Red bold text. Good for failure and error messages.
+* `headline` - Bold, underlined, cyan text. Good for section titles.
+* `info` - Blue text. Good for informational messages.
+* `muted` - Faint text. Good for de-emphasized output.
+
+#### Using Presets from the Command Line
+
+Use `--preset=NAME` to apply a preset. Options after `--preset` override the preset's options.
+
+    # Apply a built-in preset
+    ansi --preset=success "Tests pass"
+    ansi --preset=error "Build failed"
+    ansi --preset=headline "Release Notes"
+
+    # Override preset options with explicit options
+    ansi --preset=success --red "Preset was green, now red (but still bold)"
+    ansi --preset=error --bg-yellow "Red bold on yellow background"
+
+    # --no-restore keeps the preset style active for subsequent output
+    ansi --preset=success --no-restore --no-newline ""
+    echo "This line is still green and bold"
+    ansi --reset-color
+
+    # List all available presets
+    ansi --list-presets
+
+#### Using Presets as a Library
+
+When sourced as a library, use `ansi::preset` to apply a preset:
+
+    . ansi
+
+    # With text: outputs styled text with automatic reset
+    ansi::preset success "Operation completed"
+    ansi::preset error "Connection refused"
+
+    # Without text: applies styles only (you must reset manually)
+    ansi::preset headline
+    echo "This is a headline"
+    ansi::resetColor
+    ansi::noUnderline
+
+#### Defining Custom Presets
+
+Use `ansi::definePreset` to create your own reusable styles:
+
+    . ansi
+
+    # Define custom presets
+    ansi::definePreset critical "--red --bold --bg-white"
+    ansi::definePreset subtle "--faint --italic"
+    ansi::definePrompt alert "--yellow --bg-red --bold"
+
+    # Use them like built-in presets
+    ansi --preset=critical "CRITICAL: System overload"
+    ansi::preset subtle "This is barely visible"
+
+    # List all presets (built-in + custom)
+    ansi::listPresets
+
+Custom presets are also available from the command line when defined before use:
+
+    # In a script that sources ansi:
+    . ansi
+    ansi::definePreset myStyle "--magenta --bold --underline"
+    ansi --preset=myStyle "Custom styled text"
+
+
 Library Functions
 -----------------
 
@@ -399,6 +475,15 @@ The ANSI codes are written to stdout in order that the terminal might respond im
 * `ansi::isAnsiSupported` - Returns true (0) when ANSI is supported. Tries checking using tools, falls back to querying the terminal.
 * `ansi::showHelp` - Shows the help for the `ansi` command.
 * `ansi` - This function will act identically to the `ansi` command. Calling `ansi` once the library has been sourced will not spawn a subshell and instead will call functions only, greatly increasing the speed.
+
+
+### Style Presets
+
+Presets let you define and reuse named collections of ANSI options. See the "Style Presets" section under Command-Line Options for details on the built-in presets and override behavior.
+
+* `ansi::preset` - Apply a named preset. Takes a required preset name as the first argument. If additional arguments follow, they are treated as text to display (with automatic reset). If no text is given, only the preset's style codes are emitted and you must reset manually.
+* `ansi::definePreset` - Define a custom preset. Takes a name as the first argument followed by the ANSI options to store. Example: `ansi::definePreset myStyle --magenta --bold`.
+* `ansi::listPresets` - List all registered presets (built-in and custom) with their options.
 
 When setting the icon and the title, make sure to quote the value correctly so spaces are sent within the argument.
 

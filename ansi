@@ -12,6 +12,50 @@ ANSI_OSC="${ANSI_ESC}]"
 ANSI_ST="${ANSI_ESC}\\"
 ANSI_REPORT="" # The return value from ansi::report
 
+# Style presets: reusable collections of ANSI options
+declare -A ANSI_PRESETS
+ANSI_PRESETS[success]="--green --bold"
+ANSI_PRESETS[warning]="--yellow --bold"
+ANSI_PRESETS[error]="--red --bold"
+ANSI_PRESETS[headline]="--bold --underline --cyan"
+ANSI_PRESETS[info]="--blue"
+ANSI_PRESETS[muted]="--faint"
+
+ansi::definePreset() {
+    local name="$1"
+    shift
+    ANSI_PRESETS["$name"]="$*"
+}
+
+ansi::listPresets() {
+    local name
+    for name in "${!ANSI_PRESETS[@]}"; do
+        printf '%-12s %s\n' "$name" "${ANSI_PRESETS[$name]}"
+    done | sort
+}
+
+ansi::preset() {
+    local name="$1"
+    shift || {
+        printf 'ansi::preset requires a preset name\n' >&2
+        return 1
+    }
+    local presetOpts="${ANSI_PRESETS[$name]}"
+    if [[ -z "$presetOpts" ]]; then
+        printf 'ansi: unknown preset "%s"\n' "$name" >&2
+        return 1
+    fi
+    local -a presetArgs
+    read -ra presetArgs <<< "$presetOpts"
+    if [[ $# -eq 0 ]]; then
+        # No text: apply styles only, no auto-reset, no newline
+        ansi "${presetArgs[@]}" --no-restore --no-newline
+    else
+        # With text: delegate to ansi() which handles reset/restore
+        ansi "${presetArgs[@]}" "$@"
+    fi
+}
+
 ansi::backward() {
     printf '%s%sD' "$ANSI_CSI" "${1-}"
 }
@@ -779,6 +823,18 @@ Report:
     --report-title
 
 Miscellaneous:
+    --preset=NAME            Apply a named style preset. Preset options are
+                             expanded in place, so any options after --preset
+                             will override the preset's options.
+                             Built-in presets:
+                               success   Green bold text
+                               warning   Yellow bold text
+                               error     Red bold text
+                               headline  Bold underlined cyan text
+                               info      Blue text
+                               muted     Faint text
+                             Define custom presets with ansi::definePreset.
+    --list-presets           List all available presets.
     --color-table            Display a color table.
     --color-codes            Show the different color codes.
     --icon=NAME              Set the terminal's icon name.
@@ -1528,6 +1584,26 @@ ansi() {
 
             --reset-ideogram)
                 $supported && ansi::noIdeogram
+                ;;
+
+            # Presets
+            --list-presets)
+                ansi::listPresets
+                return 0
+                ;;
+
+            --preset=*)
+                local presetName="${1#*=}"
+                local presetOpts="${ANSI_PRESETS[$presetName]}"
+                if [[ -z "$presetOpts" ]]; then
+                    printf 'ansi: unknown preset "%s"\n' "$presetName" >&2
+                    return 1
+                fi
+                shift
+                local -a presetArgs
+                read -ra presetArgs <<< "$presetOpts"
+                set -- "${presetArgs[@]}" "$@"
+                continue
                 ;;
 
             # Miscellaneous

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# Change to this script's folder
+cd "${0%/*}"
+
+# Load the library into the Bash environment
+. ../ansi
+
+echo "=== Built-in Presets (Command-Line Style) ==="
+echo ""
+
+# Using ansi() function (acts like the CLI but without subshell overhead)
+ansi --preset=success "Operation completed successfully"
+ansi --preset=warning "Disk space is running low"
+ansi --preset=error "Failed to connect to database"
+ansi --preset=info "Server started on port 8080"
+ansi --preset=headline "Section Title"
+ansi --preset=muted "This text is de-emphasized"
+
+echo ""
+echo "=== Preset + Override ==="
+echo ""
+
+# Explicit options after --preset override preset options
+ansi --preset=success --red "Preset was success, but overridden to red"
+ansi --preset=error --italic "Error preset plus italic"
+ansi --preset=info --bg-yellow "Info color on yellow background"
+
+echo ""
+echo "=== Preset with --no-restore ==="
+echo ""
+
+# --no-restore keeps the preset style active for subsequent output
+ansi --preset=success --no-restore --no-newline ""
+echo "This line inherits the success style (green bold)"
+echo "Still green and bold here"
+ansi::resetColor
+echo "Back to normal after manual reset"
+
+echo ""
+echo "=== Library Function: ansi::preset ==="
+echo ""
+
+# ansi::preset with text: outputs styled text with auto-reset
+ansi::preset success "Library-style success message"
+ansi::preset warning "Library-style warning message"
+ansi::preset error "Library-style error message"
+
+echo ""
+echo "=== Library Function: ansi::preset (apply only) ==="
+echo ""
+
+# ansi::preset without text: applies styles, you reset manually
+ansi::preset headline
+echo "This entire block uses the headline preset"
+echo "Bold, underlined, and cyan until we reset"
+ansi::resetColor
+ansi::noUnderline
+echo "Back to normal"
+
+echo ""
+echo "=== Custom Presets ==="
+echo ""
+
+# Define your own presets
+ansi::definePreset critical "--red --bold --bg-white"
+ansi::definePreset subtle "--faint --italic"
+ansi::definePreset alert "--yellow --bg-red --bold"
+
+ansi --preset=critical "CRITICAL: System overload"
+ansi --preset=subtle "This is a subtle hint"
+ansi --preset=alert "ALERT: Attention required"
+
+echo ""
+echo "=== List All Presets ==="
+echo ""
+
+# Show all registered presets
+ansi::listPresets
